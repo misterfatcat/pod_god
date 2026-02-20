@@ -5,7 +5,7 @@ import './WeeklyView.css'
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 
-export default function WeeklyView({ onFeedback }) {
+export default function WeeklyView({ onFeedback, onRedoQuiz, onLogout }) {
   const [recs, setRecs] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -45,9 +45,16 @@ export default function WeeklyView({ onFeedback }) {
   return (
     <div className="weekly-view">
       <header className="weekly-header">
-        <h1>Your Week</h1>
-        <p className="weekly-sub">3 episodes per day, picked for you</p>
+        <div>
+          <h1>Your Week</h1>
+          <p className="weekly-sub">3 episodes per day, picked for you</p>
+        </div>
+        <div className="weekly-header-actions">
+          <button onClick={onRedoQuiz} className="btn-secondary">Redo Quiz</button>
+          <button onClick={onLogout} className="btn-secondary">Sign Out</button>
+        </div>
       </header>
+      <div className="days-grid-wrapper">
       <div className="days-grid">
         {DAYS.map(day => (
           <div key={day} className="day-column">
@@ -61,6 +68,7 @@ export default function WeeklyView({ onFeedback }) {
             )}
           </div>
         ))}
+      </div>
       </div>
     </div>
   )
