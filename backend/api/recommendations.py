@@ -2,6 +2,7 @@ import json
 from datetime import date, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+import httpx
 from backend.db.database import get_db
 from backend.db.models import UserProfile, Episode, Recommendation, Feedback
 from backend.services.podcast_index import PodcastIndexClient
@@ -37,7 +38,19 @@ async def generate_recommendations(db: Session = Depends(get_db)):
     # Fetch candidates from Podcast Index
     pi_client = PodcastIndexClient()
     categories = [c["category"] for c in profile_dict["interest_categories"]]
-    raw_episodes = await pi_client.search_episodes(categories, limit=30)
+    try:
+        raw_episodes = await pi_client.search_episodes(categories, limit=30)
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 401:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Podcast Index API credentials are not configured. "
+                    "Sign up free at https://api.podcastindex.org, then add "
+                    "PODCAST_INDEX_API_KEY and PODCAST_INDEX_API_SECRET to your .env file."
+                ),
+            )
+        raise HTTPException(status_code=503, detail=f"Podcast Index API error: {exc.response.status_code}")
     scored = score_episodes(raw_episodes, profile_dict)
 
     # Apply feedback weights

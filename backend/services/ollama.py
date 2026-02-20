@@ -38,13 +38,17 @@ Return ONLY valid JSON like:
 
 Rank from best to worst fit. Include all episodes."""
 
-        response = httpx.post(
-            f"{self.base_url}/api/generate",
-            json={"model": self.model, "prompt": prompt, "stream": False, "format": "json"},
-            timeout=60.0,
-        )
-        response.raise_for_status()
-        raw = response.json().get("response", "{}")
+        try:
+            response = httpx.post(
+                f"{self.base_url}/api/generate",
+                json={"model": self.model, "prompt": prompt, "stream": False, "format": "json"},
+                timeout=60.0,
+            )
+            response.raise_for_status()
+            raw = response.json().get("response", "{}")
+        except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError):
+            # Ollama not running or model unavailable — fall back to rule-based score order
+            return [{**ep, "reason": "Recommended based on your interests"} for ep in candidates]
 
         try:
             parsed = json.loads(raw)
