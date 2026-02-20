@@ -4,6 +4,15 @@ from sqlalchemy.orm import relationship
 from backend.db.database import Base
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class UserProfile(Base):
     __tablename__ = "user_profile"
 
@@ -25,6 +34,8 @@ class UserProfile(Base):
     complexity_level = Column(String, default="balanced")
     trending_vs_timeless = Column(String, default="mixed")
     mainstream_vs_niche = Column(String, default="no_preference")
+
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
 
 
 class Episode(Base):
@@ -57,6 +68,7 @@ class Recommendation(Base):
     __tablename__ = "recommendations"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     week_of = Column(String, index=True)
     day_of_week = Column(String)
     rank = Column(Integer)
@@ -75,6 +87,7 @@ class Feedback(Base):
     __tablename__ = "feedback"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     episode_id = Column(Integer, ForeignKey("episodes.id"))
