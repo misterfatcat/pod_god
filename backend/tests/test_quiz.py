@@ -1,15 +1,25 @@
 import pytest
 from fastapi.testclient import TestClient
 from backend.main import app
-from backend.db.database import engine, Base
+from backend.db.database import engine, Base, SessionLocal
 from backend.db import models  # noqa
+from backend.db.models import User
+from backend.services.auth import get_current_user
 
 
 @pytest.fixture(autouse=True)
 def fresh_db():
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    test_user = User(email="test@test.com", hashed_password="x")
+    db.add(test_user)
+    db.commit()
+    db.refresh(test_user)
+    app.dependency_overrides[get_current_user] = lambda: test_user
+    db.close()
     yield
+    app.dependency_overrides.clear()
     Base.metadata.drop_all(bind=engine)
 
 

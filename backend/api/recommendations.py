@@ -4,10 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 import httpx
 from backend.db.database import get_db
-from backend.db.models import UserProfile, Episode, Recommendation, Feedback
+from backend.db.models import UserProfile, Episode, Recommendation, Feedback, User
 from backend.services.podcast_index import PodcastIndexClient
 from backend.services.recommender import score_episodes, apply_feedback_weights
 from backend.services.ollama import OllamaClient
+from backend.services.auth import get_current_user
 
 router = APIRouter()
 DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
@@ -20,8 +21,11 @@ def _get_week_start() -> str:
 
 
 @router.post("/recommendations/generate")
-async def generate_recommendations(db: Session = Depends(get_db)):
-    profile = db.query(UserProfile).first()
+async def generate_recommendations(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Complete the quiz first.")
 
@@ -53,8 +57,14 @@ async def generate_recommendations(db: Session = Depends(get_db)):
         raise HTTPException(status_code=503, detail=f"Podcast Index API error: {exc.response.status_code}")
     scored = score_episodes(raw_episodes, profile_dict)
 
-    # Apply feedback weights
-    recent_feedback = db.query(Feedback).order_by(Feedback.created_at.desc()).limit(20).all()
+    # Apply feedback weights scoped to current user
+    recent_feedback = (
+        db.query(Feedback)
+        .filter(Feedback.user_id == current_user.id)
+        .order_by(Feedback.created_at.desc())
+        .limit(20)
+        .all()
+    )
     feedback_history = []
     for fb in recent_feedback:
         ep = fb.episode
@@ -81,9 +91,12 @@ async def generate_recommendations(db: Session = Depends(get_db)):
     ollama = OllamaClient()
     ranked = ollama.rank_episodes(top_candidates, profile_dict, feedback_summary)
 
-    # Store episodes and recommendations
+    # Store episodes and recommendations scoped to current user
     week_of = _get_week_start()
-    db.query(Recommendation).filter(Recommendation.week_of == week_of).delete()
+    db.query(Recommendation).filter(
+        Recommendation.week_of == week_of,
+        Recommendation.user_id == current_user.id,
+    ).delete()
 
     episodes_per_day = 3
     result = {}
@@ -112,6 +125,7 @@ async def generate_recommendations(db: Session = Depends(get_db)):
                 matched_criteria=json.dumps(ep_data.get("matched_criteria", [])),
                 llm_reason=ep_data.get("reason", ""),
                 llm_model_version=ollama.model,
+                user_id=current_user.id,
             )
             db.add(rec)
             result[day].append({
@@ -125,9 +139,15 @@ async def generate_recommendations(db: Session = Depends(get_db)):
 
 
 @router.get("/recommendations/week")
-def get_week_recommendations(db: Session = Depends(get_db)):
+def get_week_recommendations(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     week_of = _get_week_start()
-    recs = db.query(Recommendation).filter(Recommendation.week_of == week_of).all()
+    recs = db.query(Recommendation).filter(
+        Recommendation.week_of == week_of,
+        Recommendation.user_id == current_user.id,
+    ).all()
     if not recs:
         raise HTTPException(
             status_code=404,

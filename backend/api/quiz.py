@@ -4,7 +4,8 @@ from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
 from backend.db.database import get_db
-from backend.db.models import UserProfile
+from backend.db.models import UserProfile, User
+from backend.services.auth import get_current_user
 
 router = APIRouter()
 
@@ -49,10 +50,14 @@ def _profile_to_dict(profile: UserProfile) -> dict:
 
 
 @router.post("/quiz")
-def submit_quiz(submission: QuizSubmission, db: Session = Depends(get_db)):
-    # Replace existing profile (single-user local app)
-    db.query(UserProfile).delete()
+def submit_quiz(
+    submission: QuizSubmission,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    db.query(UserProfile).filter(UserProfile.user_id == current_user.id).delete()
     profile = UserProfile(
+        user_id=current_user.id,
         interest_categories=json.dumps([c.model_dump() for c in submission.interest_categories]),
         goals=json.dumps(submission.goals.model_dump()),
         preferred_formats=json.dumps(submission.preferred_formats),
@@ -71,8 +76,11 @@ def submit_quiz(submission: QuizSubmission, db: Session = Depends(get_db)):
 
 
 @router.get("/profile")
-def get_profile(db: Session = Depends(get_db)):
-    profile = db.query(UserProfile).first()
+def get_profile(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="No profile found. Complete the quiz first.")
     return _profile_to_dict(profile)

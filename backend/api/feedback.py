@@ -3,7 +3,8 @@ from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
 from backend.db.database import get_db
-from backend.db.models import Feedback
+from backend.db.models import Feedback, User
+from backend.services.auth import get_current_user
 
 router = APIRouter()
 
@@ -28,8 +29,12 @@ class FeedbackSubmission(BaseModel):
 
 
 @router.post("/feedback")
-def submit_feedback(submission: FeedbackSubmission, db: Session = Depends(get_db)):
-    feedback = Feedback(**submission.model_dump())
+def submit_feedback(
+    submission: FeedbackSubmission,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    feedback = Feedback(**submission.model_dump(), user_id=current_user.id)
     db.add(feedback)
     db.commit()
     db.refresh(feedback)
