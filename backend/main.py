@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.db.database import engine, Base
 from backend.db import models  # noqa: F401
-from backend.api import quiz, recommendations, feedback
+from backend.api import quiz, recommendations, feedback, auth
 
 Base.metadata.create_all(bind=engine)
 
@@ -15,6 +15,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(quiz.router)
 app.include_router(recommendations.router)
 app.include_router(feedback.router)
