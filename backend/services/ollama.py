@@ -46,8 +46,8 @@ Rank from best to worst fit. Include all episodes."""
             )
             response.raise_for_status()
             raw = response.json().get("response", "{}")
-        except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError):
-            # Ollama not running or model unavailable — fall back to rule-based score order
+        except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError, httpx.RemoteProtocolError):
+            # Ollama not running, overloaded, or model unavailable — fall back to rule-based score order
             return [{**ep, "reason": "Recommended based on your interests"} for ep in candidates]
 
         try:
