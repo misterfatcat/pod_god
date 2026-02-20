@@ -1,0 +1,6 @@
+.app-root {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  background: #000;
+  color: #fff;
+  min-height: 100vh;
+}

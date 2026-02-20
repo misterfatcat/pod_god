@@ -1,0 +1,137 @@
+import json
+from datetime import date, timedelta
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from backend.db.database import get_db
+from backend.db.models import UserProfile, Episode, Recommendation, Feedback
+from backend.services.podcast_index import PodcastIndexClient
+from backend.services.recommender import score_episodes, apply_feedback_weights
+from backend.services.ollama import OllamaClient
+
+router = APIRouter()
+DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+
+
+def _get_week_start() -> str:
+    today = date.today()
+    monday = today - timedelta(days=today.weekday())
+    return monday.isoformat()
+
+
+@router.post("/recommendations/generate")
+async def generate_recommendations(db: Session = Depends(get_db)):
+    profile = db.query(UserProfile).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Complete the quiz first.")
+
+    profile_dict = {
+        "interest_categories": json.loads(profile.interest_categories),
+        "goals": json.loads(profile.goals),
+        "preferred_formats": json.loads(profile.preferred_formats),
+        "preferred_length_bucket": profile.preferred_length_bucket,
+        "complexity_level": profile.complexity_level,
+        "trending_vs_timeless": profile.trending_vs_timeless,
+        "mainstream_vs_niche": profile.mainstream_vs_niche,
+    }
+
+    # Fetch candidates from Podcast Index
+    pi_client = PodcastIndexClient()
+    categories = [c["category"] for c in profile_dict["interest_categories"]]
+    raw_episodes = await pi_client.search_episodes(categories, limit=30)
+    scored = score_episodes(raw_episodes, profile_dict)
+
+    # Apply feedback weights
+    recent_feedback = db.query(Feedback).order_by(Feedback.created_at.desc()).limit(20).all()
+    feedback_history = []
+    for fb in recent_feedback:
+        ep = fb.episode
+        feedback_history.append({
+            "categories": json.loads(ep.categories) if ep else [],
+            "reaction": fb.reaction,
+            "great_storytelling": fb.great_storytelling,
+            "fascinating_topic": fb.fascinating_topic,
+            "repetitive": fb.repetitive,
+            "too_long": fb.too_long,
+        })
+    if feedback_history:
+        scored = apply_feedback_weights(scored, feedback_history)
+
+    top_candidates = scored[:15]
+
+    # Build feedback summary for the LLM prompt
+    feedback_summary = "; ".join(
+        f"{'Liked' if fb.reaction == 'like' else 'Disliked'}: episode {fb.episode_id}"
+        for fb in recent_feedback
+    ) or "None yet"
+
+    # LLM ranking
+    ollama = OllamaClient()
+    ranked = ollama.rank_episodes(top_candidates, profile_dict, feedback_summary)
+
+    # Store episodes and recommendations
+    week_of = _get_week_start()
+    db.query(Recommendation).filter(Recommendation.week_of == week_of).delete()
+
+    episodes_per_day = 3
+    result = {}
+    for day_idx, day in enumerate(DAYS):
+        day_eps = ranked[day_idx * episodes_per_day: (day_idx + 1) * episodes_per_day]
+        result[day] = []
+        for rank, ep_data in enumerate(day_eps, start=1):
+            episode = db.query(Episode).filter(
+                Episode.podcast_index_id == ep_data["podcast_index_id"]
+            ).first()
+            if not episode:
+                episode = Episode(**{
+                    k: v for k, v in ep_data.items()
+                    if k not in ("score", "matched_criteria", "reason")
+                    and hasattr(Episode, k)
+                })
+                db.add(episode)
+                db.flush()
+
+            rec = Recommendation(
+                week_of=week_of,
+                day_of_week=day,
+                rank=rank,
+                episode_id=episode.id,
+                score=ep_data.get("score", 0.0),
+                matched_criteria=json.dumps(ep_data.get("matched_criteria", [])),
+                llm_reason=ep_data.get("reason", ""),
+                llm_model_version=ollama.model,
+            )
+            db.add(rec)
+            result[day].append({
+                "rank": rank,
+                "title": ep_data["title"],
+                "reason": ep_data.get("reason", ""),
+            })
+
+    db.commit()
+    return {"week_of": week_of, "recommendations": result}
+
+
+@router.get("/recommendations/week")
+def get_week_recommendations(db: Session = Depends(get_db)):
+    week_of = _get_week_start()
+    recs = db.query(Recommendation).filter(Recommendation.week_of == week_of).all()
+    if not recs:
+        raise HTTPException(
+            status_code=404,
+            detail="No recommendations yet. POST /recommendations/generate first.",
+        )
+    result = {day: [] for day in DAYS}
+    for rec in sorted(recs, key=lambda r: (r.day_of_week, r.rank)):
+        ep = rec.episode
+        result[rec.day_of_week].append({
+            "rank": rec.rank,
+            "id": rec.id,
+            "episode_id": rec.episode_id,
+            "title": ep.title if ep else "",
+            "artwork_url": ep.artwork_url if ep else "",
+            "duration_sec": ep.duration_sec if ep else 0,
+            "audio_url": ep.audio_url if ep else "",
+            "reason": rec.llm_reason,
+            "was_listened": rec.was_listened,
+        })
+    return {"week_of": week_of, "recommendations": result}
