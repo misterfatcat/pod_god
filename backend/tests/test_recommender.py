@@ -69,6 +69,52 @@ def test_disliked_categories_reduce_score():
     assert weighted[0]["score"] <= baseline
 
 
+def test_not_interested_categories_reduce_score():
+    episodes = [make_episode()]
+    feedback_history = [
+        {"categories": ["Technology"], "reaction": "not_interested", "too_basic": True, "too_advanced": False, "too_long": False}
+    ]
+    scored = score_episodes(episodes, PROFILE)
+    baseline = scored[0]["score"]
+    weighted = apply_feedback_weights(scored, feedback_history)
+    assert weighted[0]["score"] < baseline
+
+
+def test_not_interested_all_flags_with_full_dict_shape():
+    """Verifies that the full feedback_history dict shape (as built by _generate_for_user)
+    correctly triggers all not_interested penalty branches."""
+    # Episode >45 min triggers the too_long penalty too
+    episodes = [make_episode(duration_sec=3000)]
+    full_shape_feedback = [{
+        "categories": ["Technology"],
+        "reaction": "not_interested",
+        "great_storytelling": False,
+        "fascinating_topic": False,
+        "repetitive": False,
+        "too_long": True,
+        "too_basic": True,
+        "too_advanced": False,
+    }]
+    scored = score_episodes(episodes, PROFILE)
+    baseline = scored[0]["score"]
+    weighted = apply_feedback_weights(scored, full_shape_feedback)
+    # too_basic (-0.05) + too_long (-0.05) + base not_interested (-0.1) = -0.2
+    assert weighted[0]["score"] <= baseline - 0.19
+
+
+def test_not_interested_penalty_stays_within_bounds():
+    episodes = [make_episode()]
+    # Many not_interested signals shouldn't push score below 0.0
+    feedback_history = [
+        {"categories": ["Technology"], "reaction": "not_interested", "too_basic": True, "too_advanced": True, "too_long": True}
+        for _ in range(20)
+    ]
+    scored = score_episodes(episodes, PROFILE)
+    weighted = apply_feedback_weights(scored, feedback_history)
+    assert weighted[0]["score"] >= 0.0
+    assert weighted[0]["score"] <= 1.0
+
+
 def test_feedback_weights_score_stays_within_bounds():
     episodes = [make_episode()]
     # Many positive signals shouldn't push score above 1.0

@@ -69,5 +69,13 @@ def apply_feedback_weights(scored: list[dict], feedback_history: list[dict]) -> 
                     boost -= 0.05
                 if fb.get("too_long") and ep.get("duration_sec", 0) > 2700:
                     boost -= 0.05
+            elif fb.get("reaction") == "not_interested":
+                boost -= 0.1
+                if fb.get("too_basic"):
+                    boost -= 0.05
+                if fb.get("too_advanced"):
+                    boost -= 0.05
+                if fb.get("too_long") and ep.get("duration_sec", 0) > 2700:
+                    boost -= 0.05
         ep["score"] = round(max(0.0, min(1.0, ep["score"] + boost)), 3)
     return sorted(scored, key=lambda e: e["score"], reverse=True)
