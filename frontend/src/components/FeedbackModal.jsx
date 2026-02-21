@@ -2,6 +2,12 @@ import { useState } from 'react'
 import { submitFeedback } from '../api/client'
 import './FeedbackModal.css'
 
+const REACTION_LABELS = {
+  like: '♥ Liked',
+  dislike: '✕ Disliked',
+  not_interested: '⊘ Not Interested',
+}
+
 const REASON_FLAGS = [
   { key: 'great_storytelling', label: 'Great storytelling' },
   { key: 'fascinating_topic', label: 'Fascinating topic' },
@@ -46,12 +52,12 @@ export default function FeedbackModal({ episode, reaction, onClose }) {
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <span className={`reaction-badge ${reaction}`}>
-            {reaction === 'like' ? '♥ Liked' : '✕ Disliked'}
+            {REACTION_LABELS[reaction] || reaction}
           </span>
           <h2>{episode.title}</h2>
         </div>
 
-        <p className="modal-label">What stood out? (optional)</p>
+        <p className="modal-label">{reaction === 'not_interested' ? 'What put you off? (optional)' : 'What stood out? (optional)'}</p>
         <div className="reason-grid">
           {REASON_FLAGS.map(r => (
             <button

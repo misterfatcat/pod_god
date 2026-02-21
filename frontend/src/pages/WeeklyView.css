@@ -65,7 +65,36 @@
   color: #888;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0;
+}
+
+.day-label-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.85rem;
+}
+
+.day-column--today {
+  background: #0a0a0a;
+  border-radius: 10px;
+  padding: 1.25rem 0.75rem;
+  margin: 0 -0.75rem;
+}
+
+.day-column--today .day-label {
+  color: #fc3c44;
+}
+
+.today-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.15rem 0.45rem;
+  border-radius: 8px;
+  background: #1a0a0e;
+  color: #fc3c44;
+  border: 1px solid #3a0a15;
 }
 
 .no-eps {
@@ -83,6 +112,10 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.episode-card-body {
+  cursor: pointer;
 }
 
 .artwork {
@@ -139,6 +172,24 @@
   background: #1a1a1a;
   border-color: #666;
   color: #999;
+}
+
+.btn-not-interested {
+  flex: 1;
+  padding: 0.3rem;
+  border-radius: 6px;
+  border: 1px solid #2a2a2a;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #444;
+  transition: all 0.15s;
+}
+
+.btn-not-interested:hover {
+  background: #121212;
+  border-color: #555;
+  color: #888;
 }
 
 /* Loading state */

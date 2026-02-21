@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.db.database import engine, Base
 from backend.db import models  # noqa: F401
 from backend.api import quiz, recommendations, feedback, auth
+from backend.services.scheduler import start_scheduler, stop_scheduler
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -35,7 +36,9 @@ def _ensure_ollama():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _ensure_ollama()
+    start_scheduler()
     yield
+    stop_scheduler()
 
 
 app = FastAPI(title="Podcast Recommender", lifespan=lifespan)

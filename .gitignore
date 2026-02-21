@@ -6,3 +6,5 @@ __pycache__/
 dist/
 node_modules/
 .DS_Store
+api.ipynb
+.worktrees/

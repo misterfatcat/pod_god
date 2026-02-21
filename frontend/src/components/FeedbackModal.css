@@ -48,6 +48,12 @@
   color: #888;
 }
 
+.reaction-badge.not_interested {
+  background: #111;
+  color: #666;
+  border: 1px solid #2a2a2a;
+}
+
 .modal-label {
   font-size: 0.8rem;
   color: #666;

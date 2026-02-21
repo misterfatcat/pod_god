@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import date, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -11,6 +12,7 @@ from backend.services.ollama import OllamaClient
 from backend.services.auth import get_current_user
 
 router = APIRouter()
+logger = logging.getLogger("uvicorn.error")
 DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
 
@@ -20,14 +22,11 @@ def _get_week_start() -> str:
     return monday.isoformat()
 
 
-@router.post("/recommendations/generate")
-async def generate_recommendations(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
+async def _generate_for_user(user_id: int, db: Session) -> dict:
+    """Core generation logic, usable by both the HTTP endpoint and the scheduler."""
+    profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
     if not profile:
-        raise HTTPException(status_code=404, detail="Complete the quiz first.")
+        raise ValueError("Complete the quiz first.")
 
     profile_dict = {
         "interest_categories": json.loads(profile.interest_categories),
@@ -42,25 +41,14 @@ async def generate_recommendations(
     # Fetch candidates from Podcast Index
     pi_client = PodcastIndexClient()
     categories = [c["category"] for c in profile_dict["interest_categories"]]
-    try:
-        raw_episodes = await pi_client.search_episodes(categories, limit=30)
-    except httpx.HTTPStatusError as exc:
-        if exc.response.status_code == 401:
-            raise HTTPException(
-                status_code=503,
-                detail=(
-                    "Podcast Index API credentials are not configured. "
-                    "Sign up free at https://api.podcastindex.org, then add "
-                    "PODCAST_INDEX_API_KEY and PODCAST_INDEX_API_SECRET to your .env file."
-                ),
-            )
-        raise HTTPException(status_code=503, detail=f"Podcast Index API error: {exc.response.status_code}")
+    raw_episodes = await pi_client.search_episodes(categories, limit=30)
+
     scored = score_episodes(raw_episodes, profile_dict)
 
     # Apply feedback weights scoped to current user
     recent_feedback = (
         db.query(Feedback)
-        .filter(Feedback.user_id == current_user.id)
+        .filter(Feedback.user_id == user_id)
         .order_by(Feedback.created_at.desc())
         .limit(20)
         .all()
@@ -75,6 +63,8 @@ async def generate_recommendations(
             "fascinating_topic": fb.fascinating_topic,
             "repetitive": fb.repetitive,
             "too_long": fb.too_long,
+            "too_basic": fb.too_basic,
+            "too_advanced": fb.too_advanced,
         })
     if feedback_history:
         scored = apply_feedback_weights(scored, feedback_history)
@@ -95,7 +85,7 @@ async def generate_recommendations(
     week_of = _get_week_start()
     db.query(Recommendation).filter(
         Recommendation.week_of == week_of,
-        Recommendation.user_id == current_user.id,
+        Recommendation.user_id == user_id,
     ).delete()
 
     episodes_per_day = 3
@@ -125,7 +115,7 @@ async def generate_recommendations(
                 matched_criteria=json.dumps(ep_data.get("matched_criteria", [])),
                 llm_reason=ep_data.get("reason", ""),
                 llm_model_version=ollama.model,
-                user_id=current_user.id,
+                user_id=user_id,
             )
             db.add(rec)
             result[day].append({
@@ -136,6 +126,28 @@ async def generate_recommendations(
 
     db.commit()
     return {"week_of": week_of, "recommendations": result}
+
+
+@router.post("/recommendations/generate")
+async def generate_recommendations(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return await _generate_for_user(current_user.id, db)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 401:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Podcast Index API credentials are not configured. "
+                    "Sign up free at https://api.podcastindex.org, then add "
+                    "PODCAST_INDEX_API_KEY and PODCAST_INDEX_API_SECRET to your .env file."
+                ),
+            )
+        raise HTTPException(status_code=503, detail=f"Podcast Index API error: {exc.response.status_code}")
 
 
 @router.get("/recommendations/week")
@@ -166,5 +178,8 @@ def get_week_recommendations(
             "audio_url": ep.audio_url if ep else "",
             "reason": rec.llm_reason,
             "was_listened": rec.was_listened,
+            "description": ep.description if ep else "",
+            "published_at": ep.published_at.isoformat() if ep and ep.published_at else None,
+            "host_name": ep.host_name if ep else None,
         })
     return {"week_of": week_of, "recommendations": result}
