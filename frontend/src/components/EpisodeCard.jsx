@@ -1,14 +1,26 @@
 export default function EpisodeCard({ episode, onFeedback, onOpenDetail }) {
   const mins = Math.round((episode.duration_sec || 0) / 60)
+  const categories = Array.isArray(episode.categories)
+    ? episode.categories
+    : (typeof episode.categories === 'string' ? JSON.parse(episode.categories || '[]') : [])
 
   return (
     <div className="episode-card">
       <div className="episode-card-body" onClick={() => onOpenDetail(episode)}>
-        {episode.artwork_url && (
+        {episode.artwork_url ? (
           <img src={episode.artwork_url} alt={episode.title} className="artwork" />
+        ) : (
+          <div className="artwork artwork-placeholder" />
         )}
         <div className="episode-info">
           <h3>{episode.title}</h3>
+          {categories.length > 0 && (
+            <div className="episode-categories">
+              {categories.slice(0, 3).map(cat => (
+                <span key={cat} className="category-chip">{cat}</span>
+              ))}
+            </div>
+          )}
           <p className="reason">{episode.reason}</p>
           <span className="duration">{mins > 0 ? `${mins} min` : ''}</span>
         </div>

@@ -14,6 +14,23 @@ const FORMATS = ['interview', 'narrative', 'solo', 'panel', 'news']
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 const TIME_SLOTS = ['morning', 'afternoon', 'evening', 'night']
 
+const AGE_RANGES = [
+  'Under 25', '25–34', '35–44', '45–54', '55–64', '65 or older',
+]
+
+const US_STATES = [
+  'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado',
+  'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho',
+  'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana',
+  'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota',
+  'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada',
+  'New Hampshire', 'New Jersey', 'New Mexico', 'New York',
+  'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon',
+  'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota',
+  'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington',
+  'Washington D.C.', 'West Virginia', 'Wisconsin', 'Wyoming',
+]
+
 const PRIMARY_GOALS = [
   { value: 'learn', label: 'Learn something new' },
   { value: 'entertain', label: 'Be entertained' },
@@ -24,19 +41,22 @@ const PRIMARY_GOALS = [
 
 const SECONDARY_GOALS = ['learn', 'entertain', 'stay_informed', 'relax', 'professional']
 
-export default function Quiz({ onComplete }) {
+export default function Quiz({ onComplete, initialProfile = null }) {
   const [step, setStep] = useState(0)
   const [answers, setAnswers] = useState({
-    interest_categories: [],
-    goals: { primary: '', secondary: [] },
-    preferred_formats: [],
-    preferred_length_bucket: 'no_preference',
-    complexity_level: 'balanced',
-    trending_vs_timeless: 'mixed',
-    mainstream_vs_niche: 'no_preference',
-    preferred_listen_schedule: {},
-    age_range: null,
-    location_region: null,
+    interest_categories: initialProfile?.interest_categories ?? [],
+    goals: {
+      primary: initialProfile?.goals?.primary ?? '',
+      secondary: initialProfile?.goals?.secondary ?? [],
+    },
+    preferred_formats: initialProfile?.preferred_formats ?? [],
+    preferred_length_bucket: initialProfile?.preferred_length_bucket ?? 'no_preference',
+    complexity_level: initialProfile?.complexity_level ?? 'balanced',
+    trending_vs_timeless: initialProfile?.trending_vs_timeless ?? 'mixed',
+    mainstream_vs_niche: initialProfile?.mainstream_vs_niche ?? 'no_preference',
+    preferred_listen_schedule: initialProfile?.preferred_listen_schedule ?? {},
+    age_range: initialProfile?.age_range ?? null,
+    location_region: initialProfile?.location_region ?? null,
   })
 
   const next = () => setStep(s => s + 1)
@@ -109,8 +129,8 @@ export default function Quiz({ onComplete }) {
     // Step 0: Topic interests
     <QuizStep
       key={0}
-      title="What topics interest you?"
-      subtitle="Pick as many as you like, then rate how much each one matters to you."
+      title={initialProfile ? 'Editing your profile' : 'What topics interest you?'}
+      subtitle={initialProfile ? 'Update your topics — changes apply immediately after you finish.' : 'Pick as many as you like, then rate how much each one matters to you.'}
       onNext={next}
       isFirst
     >
@@ -341,27 +361,34 @@ export default function Quiz({ onComplete }) {
     <QuizStep
       key={8}
       title="Almost done!"
-      subtitle="These are optional — they help us find region-specific content."
+      subtitle="These are optional — they help us surface region-relevant content."
       onNext={handleSubmit}
       onBack={back}
       isLast
     >
       <label className="optional-label">Age range (optional)</label>
-      <input
-        type="text"
+      <div className="chip-grid" style={{ marginBottom: '1.5rem' }}>
+        {AGE_RANGES.map(age => (
+          <button
+            key={age}
+            className={`chip ${answers.age_range === age ? 'selected' : ''}`}
+            onClick={() => setAnswers(a => ({ ...a, age_range: a.age_range === age ? null : age }))}
+          >
+            {age}
+          </button>
+        ))}
+      </div>
+      <label className="optional-label">State (optional)</label>
+      <select
         className="text-input"
-        placeholder="e.g. 25-34"
-        value={answers.age_range || ''}
-        onChange={e => setAnswers(a => ({ ...a, age_range: e.target.value || null }))}
-      />
-      <label className="optional-label">Location / region (optional)</label>
-      <input
-        type="text"
-        className="text-input"
-        placeholder="e.g. US-West, UK, Australia"
         value={answers.location_region || ''}
         onChange={e => setAnswers(a => ({ ...a, location_region: e.target.value || null }))}
-      />
+      >
+        <option value="">Select a state…</option>
+        {US_STATES.map(state => (
+          <option key={state} value={state}>{state}</option>
+        ))}
+      </select>
     </QuizStep>,
   ]
 

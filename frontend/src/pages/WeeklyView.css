@@ -1,19 +1,32 @@
+/* ── Page ────────────────────────────────────────────────── */
 .weekly-view {
+  min-height: 100vh;
   color: #fff;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
 }
 
-.days-grid-wrapper {
-  padding: 2rem;
-}
-
+/* ── Header ──────────────────────────────────────────────── */
 .weekly-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #000;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.5rem 2rem;
-  border-bottom: 1px solid #222;
-  margin-bottom: 0;
+  padding: 1.25rem 2rem;
+  border-bottom: 1px solid #1a1a1a;
+}
+
+.weekly-header h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.weekly-sub {
+  color: #555;
+  font-size: 0.85rem;
+  margin-top: 0.2rem;
 }
 
 .weekly-header-actions {
@@ -23,12 +36,12 @@
 
 .btn-secondary {
   background: transparent;
-  border: 1px solid #444;
+  border: 1px solid #333;
   border-radius: 8px;
-  color: #aaa;
+  color: #888;
   cursor: pointer;
   font-size: 0.85rem;
-  padding: 0.5rem 1rem;
+  padding: 0.45rem 1rem;
   transition: border-color 0.2s, color 0.2s;
 }
 
@@ -37,34 +50,34 @@
   color: #fc3c44;
 }
 
-.weekly-header h1 {
-  font-size: 2rem;
-  font-weight: 700;
-}
-
-.weekly-sub {
-  color: #666;
-  font-size: 0.9rem;
-  margin-top: 0.25rem;
+/* ── Day list ────────────────────────────────────────────── */
+.days-grid-wrapper {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 2rem 3rem;
 }
 
 .days-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 1rem;
-  overflow-x: auto;
+  display: flex;
+  flex-direction: column;
 }
 
+/* ── Day section ─────────────────────────────────────────── */
 .day-column {
-  min-width: 180px;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid #141414;
+}
+
+.day-column:last-child {
+  border-bottom: none;
 }
 
 .day-label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #888;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #555;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.1em;
   margin-bottom: 0;
 }
 
@@ -97,81 +110,140 @@
   border: 1px solid #3a0a15;
 }
 
+/* ── Episodes row ────────────────────────────────────────── */
+.day-episodes {
+  display: flex;
+  gap: 1rem;
+}
+
 .no-eps {
-  color: #444;
+  color: #333;
   font-size: 0.85rem;
 }
 
-/* Episode card */
+/* ── Episode card ────────────────────────────────────────── */
 .episode-card {
-  background: #111;
-  border: 1px solid #222;
-  border-radius: 12px;
-  padding: 0.75rem;
-  margin-bottom: 0.75rem;
+  flex: 1;
+  min-width: 0;
+  background: #0d0d0d;
+  border: 1px solid #1e1e1e;
+  border-radius: 10px;
+  padding: 0.85rem;
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  flex-direction: row;
+  gap: 0.75rem;
+  align-items: flex-start;
+  transition: border-color 0.15s;
+}
+
+.episode-card:hover {
+  border-color: #333;
 }
 
 .episode-card-body {
   cursor: pointer;
+  display: flex;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .artwork {
-  width: 100%;
-  aspect-ratio: 1;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: 6px;
+}
+
+.artwork-placeholder {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: #1a1a1a;
+}
+
+.episode-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
 }
 
 .episode-info h3 {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  color: #fff;
-  margin-bottom: 0.25rem;
-  line-height: 1.3;
+  color: #eee;
+  line-height: 1.35;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.episode-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.category-chip {
+  font-size: 0.62rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: #1a2535;
+  color: #4a85c0;
 }
 
 .reason {
-  font-size: 0.75rem;
-  color: #888;
+  font-size: 0.72rem;
+  color: #555;
   line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .duration {
-  font-size: 0.75rem;
-  color: #555;
+  font-size: 0.7rem;
+  color: #444;
 }
 
 .episode-actions {
   display: flex;
-  gap: 0.5rem;
-  margin-top: 0.25rem;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex-shrink: 0;
 }
 
 .btn-like,
 .btn-dislike {
   flex: 1;
-  padding: 0.4rem;
-  border-radius: 8px;
-  border: 1px solid #333;
+  padding: 0.3rem;
+  border-radius: 6px;
+  border: 1px solid #2a2a2a;
   background: transparent;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.85rem;
   transition: all 0.15s;
 }
 
+.btn-like { color: #cc3a50; }
+.btn-dislike { color: #555; }
+
 .btn-like:hover {
-  background: #1a1a2e;
-  border-color: #ff4d6d;
+  background: #1a0d10;
+  border-color: #cc3a50;
   color: #ff4d6d;
 }
 
 .btn-dislike:hover {
   background: #1a1a1a;
   border-color: #666;
-  color: #999;
+  color: #aaa;
 }
 
 .btn-not-interested {
@@ -192,7 +264,25 @@
   color: #888;
 }
 
-/* Loading state */
+/* ── Per-day refresh button ──────────────────────────────── */
+.btn-refresh-day {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: #444;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  transition: color 0.15s;
+  line-height: 1;
+}
+.btn-refresh-day:hover { color: #888; }
+.btn-refresh-day:disabled { opacity: 0.3; cursor: not-allowed; }
+.btn-refresh-day.spinning { animation: spin 0.8s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* ── Loading / error states ──────────────────────────────── */
 .weekly-loading {
   display: flex;
   flex-direction: column;
@@ -206,10 +296,10 @@
 }
 
 .weekly-loading p {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
 }
 
 .loading-sub {
-  color: #666 !important;
-  font-size: 0.9rem !important;
+  color: #555 !important;
+  font-size: 0.85rem !important;
 }

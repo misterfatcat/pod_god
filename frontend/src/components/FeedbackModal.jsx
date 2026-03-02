@@ -8,18 +8,35 @@ const REACTION_LABELS = {
   not_interested: '⊘ Not Interested',
 }
 
-const REASON_FLAGS = [
-  { key: 'great_storytelling', label: 'Great storytelling' },
-  { key: 'fascinating_topic', label: 'Fascinating topic' },
-  { key: 'loved_guest', label: 'Loved the guest' },
-  { key: 'great_production', label: 'Great production' },
-  { key: 'too_long', label: 'Too long' },
-  { key: 'too_short', label: 'Too short' },
-  { key: 'poor_audio', label: 'Poor audio' },
-  { key: 'too_basic', label: 'Too basic' },
-  { key: 'too_advanced', label: 'Too advanced' },
-  { key: 'repetitive', label: 'Repetitive' },
+// All 10 flag keys — used in handleSubmit to ensure every DB column is always written
+const ALL_FLAGS = [
+  'great_storytelling', 'fascinating_topic', 'loved_guest', 'great_production',
+  'too_long', 'too_short', 'poor_audio', 'too_basic', 'too_advanced', 'repetitive',
 ]
+
+// Subset shown in the UI, differentiated by reaction type
+const FLAGS_BY_REACTION = {
+  like: [
+    { key: 'great_storytelling', label: 'Great storytelling' },
+    { key: 'fascinating_topic',  label: 'Fascinating topic' },
+    { key: 'loved_guest',        label: 'Loved the guest' },
+    { key: 'great_production',   label: 'Great production' },
+  ],
+  dislike: [
+    { key: 'too_long',     label: 'Too long' },
+    { key: 'too_short',    label: 'Too short' },
+    { key: 'poor_audio',   label: 'Poor audio' },
+    { key: 'too_basic',    label: 'Too basic' },
+    { key: 'too_advanced', label: 'Too advanced' },
+    { key: 'repetitive',   label: 'Repetitive' },
+  ],
+  not_interested: [
+    { key: 'too_basic',    label: 'Too basic' },
+    { key: 'too_advanced', label: 'Too advanced' },
+    { key: 'too_long',     label: 'Too long' },
+    { key: 'repetitive',   label: 'Repetitive' },
+  ],
+}
 
 const CONTEXTS = ['commute', 'workout', 'cooking', 'relaxing', 'other']
 
@@ -39,7 +56,7 @@ export default function FeedbackModal({ episode, reaction, onClose }) {
         reaction,
         listen_context: context || null,
         reason_text: reasonText || null,
-        ...Object.fromEntries(REASON_FLAGS.map(r => [r.key, flags[r.key] || false])),
+        ...Object.fromEntries(ALL_FLAGS.map(key => [key, flags[key] || false])),
       })
     } finally {
       setSubmitting(false)
@@ -59,7 +76,7 @@ export default function FeedbackModal({ episode, reaction, onClose }) {
 
         <p className="modal-label">{reaction === 'not_interested' ? 'What put you off? (optional)' : 'What stood out? (optional)'}</p>
         <div className="reason-grid">
-          {REASON_FLAGS.map(r => (
+          {(FLAGS_BY_REACTION[reaction] || []).map(r => (
             <button
               key={r.key}
               className={`reason-chip ${flags[r.key] ? 'selected' : ''}`}
@@ -70,18 +87,22 @@ export default function FeedbackModal({ episode, reaction, onClose }) {
           ))}
         </div>
 
-        <p className="modal-label">When did you listen?</p>
-        <div className="context-row">
-          {CONTEXTS.map(c => (
-            <button
-              key={c}
-              className={`reason-chip ${context === c ? 'selected' : ''}`}
-              onClick={() => setContext(prev => prev === c ? '' : c)}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
+        {reaction !== 'not_interested' && (
+          <>
+            <p className="modal-label">When did you listen?</p>
+            <div className="context-row">
+              {CONTEXTS.map(c => (
+                <button
+                  key={c}
+                  className={`reason-chip ${context === c ? 'selected' : ''}`}
+                  onClick={() => setContext(prev => prev === c ? '' : c)}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         <textarea
           className="feedback-textarea"

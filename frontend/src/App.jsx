@@ -9,13 +9,22 @@ import './App.css'
 export default function App() {
   const [view, setView] = useState('loading')
   const [feedbackEpisode, setFeedbackEpisode] = useState(null)
+  const [existingProfile, setExistingProfile] = useState(null)
+  const [shouldRegenerateRecs, setShouldRegenerateRecs] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) { setView('auth'); return }
     getProfile()
-      .then(() => setView('weekly'))
-      .catch(() => setView('quiz'))
+      .then((res) => { setExistingProfile(res.data); setView('weekly') })
+      .catch((err) => {
+        if (err.response?.status === 401) {
+          localStorage.removeItem('token')
+          setView('auth')
+        } else {
+          setView('quiz')
+        }
+      })
   }, [])
 
   const handleLogout = () => {
@@ -27,13 +36,28 @@ export default function App() {
 
   return (
     <div className="app-root">
-      {view === 'auth' && <Auth onAuthenticated={(v) => setView(v)} />}
-      {view === 'quiz' && <Quiz onComplete={() => setView('weekly')} />}
+      {view === 'auth' && (
+        <Auth onAuthenticated={(v, profile) => {
+          if (profile) setExistingProfile(profile)
+          setView(v)
+        }} />
+      )}
+      {view === 'quiz' && (
+        <Quiz
+          initialProfile={existingProfile}
+          onComplete={() => {
+            setShouldRegenerateRecs(true)
+            setView('weekly')
+          }}
+        />
+      )}
       {view === 'weekly' && (
         <WeeklyView
           onFeedback={(ep, reaction) => setFeedbackEpisode({ ep, reaction })}
           onRedoQuiz={() => setView('quiz')}
           onLogout={handleLogout}
+          shouldRegenerate={shouldRegenerateRecs}
+          onRegenerated={() => setShouldRegenerateRecs(false)}
         />
       )}
       {feedbackEpisode && (

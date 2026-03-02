@@ -17,8 +17,8 @@ export default function Auth({ onAuthenticated }) {
       const fn = mode === 'login' ? login : register
       const { data } = await fn(email, password)
       localStorage.setItem('token', data.access_token)
-      const hasProfile = await getProfile().then(() => true).catch(() => false)
-      onAuthenticated(hasProfile ? 'weekly' : 'quiz')
+      const profileRes = await getProfile().catch(() => null)
+      onAuthenticated(profileRes ? 'weekly' : 'quiz', profileRes?.data ?? null)
     } catch (err) {
       setError(err.response?.data?.detail || 'Something went wrong.')
     } finally {

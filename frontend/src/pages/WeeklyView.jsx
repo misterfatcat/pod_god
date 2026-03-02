@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import EpisodeCard from '../components/EpisodeCard'
 import EpisodeDetailModal from '../components/EpisodeDetailModal'
-import { generateRecommendations, getWeekRecommendations } from '../api/client'
+import { generateRecommendations, getWeekRecommendations, regenerateDay } from '../api/client'
 import './WeeklyView.css'
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
@@ -25,26 +25,38 @@ function getDayLabel(dayName, weekOfIso) {
   return `${dayName.charAt(0).toUpperCase() + dayName.slice(1)} · ${dateStr}`
 }
 
-export default function WeeklyView({ onFeedback, onRedoQuiz, onLogout }) {
+export default function WeeklyView({ onFeedback, onRedoQuiz, onLogout, shouldRegenerate, onRegenerated }) {
   const [recs, setRecs] = useState(null)
   const [weekOf, setWeekOf] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [detailEpisode, setDetailEpisode] = useState(null)
+  const [refreshingDay, setRefreshingDay] = useState(null)
 
   useEffect(() => {
-    getWeekRecommendations()
-      .then(res => { setRecs(res.data.recommendations); setWeekOf(res.data.week_of) })
-      .catch(() => {
-        setLoading(true)
-        generateRecommendations()
-          .then(() => getWeekRecommendations())
-          .then(res => { setRecs(res.data.recommendations); setWeekOf(res.data.week_of) })
-          .catch(err => setError(err.message || 'Failed to generate recommendations'))
-          .finally(() => setLoading(false))
-      })
-      .finally(() => setLoading(false))
+    const applyRecs = (res) => { setRecs(res.data.recommendations); setWeekOf(res.data.week_of) }
+
+    const load = shouldRegenerate
+      ? generateRecommendations().then(() => getWeekRecommendations())
+      : getWeekRecommendations().catch(() => generateRecommendations().then(() => getWeekRecommendations()))
+
+    load
+      .then(applyRecs)
+      .catch(err => setError(err.response?.data?.detail || err.message || 'Failed to generate recommendations'))
+      .finally(() => { setLoading(false); onRegenerated?.() })
   }, [])
+
+  const handleRefreshDay = async (day) => {
+    setRefreshingDay(day)
+    try {
+      const res = await regenerateDay(day)
+      setRecs(prev => ({ ...prev, [day]: res.data.recommendations[day] }))
+    } catch (err) {
+      console.error('Failed to refresh day:', err)
+    } finally {
+      setRefreshingDay(null)
+    }
+  }
 
   if (loading) {
     return (
@@ -77,28 +89,38 @@ export default function WeeklyView({ onFeedback, onRedoQuiz, onLogout }) {
         </div>
       </header>
       <div className="days-grid-wrapper">
-      <div className="days-grid">
-        {DAYS.map(day => (
-          <div key={day} className={`day-column${day === TODAY_NAME ? ' day-column--today' : ''}`}>
-            <div className="day-label-row">
-              <h2 className="day-label">{getDayLabel(day, weekOf)}</h2>
-              {day === TODAY_NAME && <span className="today-badge">Today</span>}
+        <div className="days-grid">
+          {DAYS.map(day => (
+            <div key={day} className={`day-column${day === TODAY_NAME ? ' day-column--today' : ''}`}>
+              <div className="day-label-row">
+                <h2 className="day-label">{getDayLabel(day, weekOf)}</h2>
+                {day === TODAY_NAME && <span className="today-badge">Today</span>}
+                <button
+                  className={`btn-refresh-day${refreshingDay === day ? ' spinning' : ''}`}
+                  onClick={() => handleRefreshDay(day)}
+                  disabled={refreshingDay !== null}
+                  title="Refresh this day"
+                >
+                  ↻
+                </button>
+              </div>
+              <div className="day-episodes">
+                {(recs?.[day] || []).length === 0 ? (
+                  <p className="no-eps">No episodes</p>
+                ) : (
+                  (recs?.[day] || []).map(ep => (
+                    <EpisodeCard
+                      key={ep.id}
+                      episode={ep}
+                      onFeedback={onFeedback}
+                      onOpenDetail={setDetailEpisode}
+                    />
+                  ))
+                )}
+              </div>
             </div>
-            {(recs?.[day] || []).length === 0 ? (
-              <p className="no-eps">No episodes</p>
-            ) : (
-              (recs?.[day] || []).map(ep => (
-                <EpisodeCard
-                  key={ep.id}
-                  episode={ep}
-                  onFeedback={onFeedback}
-                  onOpenDetail={setDetailEpisode}
-                />
-              ))
-            )}
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
       </div>
       {detailEpisode && (
         <EpisodeDetailModal

@@ -9,27 +9,33 @@ def client():
 
 
 async def test_search_returns_episodes(client):
-    mock_response = {
+    # First call: /search/byterm expects {"feeds": [...]}
+    feed_resp = MagicMock()
+    feed_resp.raise_for_status = MagicMock()
+    feed_resp.json.return_value = {
+        "feeds": [{"id": 1, "image": "http://example.com/art.jpg", "categories": {"1": "Technology"}}]
+    }
+
+    # Second call: /episodes/byfeedid expects {"items": [...]}
+    episode_resp = MagicMock()
+    episode_resp.status_code = 200
+    episode_resp.json.return_value = {
         "items": [
             {
                 "id": "abc123",
-                "feedId": "feed1",
+                "feedId": 1,
                 "title": "Test Episode",
                 "description": "Great ep",
                 "duration": 1800,
                 "datePublished": 1700000000,
                 "enclosureUrl": "http://example.com/ep.mp3",
                 "feedImage": "http://example.com/art.jpg",
-                "categories": {"1": "Technology"},
             }
         ]
     }
-    mock_resp = MagicMock()
-    mock_resp.json.return_value = mock_response
-    mock_resp.raise_for_status = MagicMock()
 
     with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
-        mock_get.return_value = mock_resp
+        mock_get.side_effect = [feed_resp, episode_resp]
         episodes = await client.search_episodes(["technology"], limit=5)
 
     assert len(episodes) == 1
